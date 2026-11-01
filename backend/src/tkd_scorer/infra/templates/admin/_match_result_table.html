@@ -1,0 +1,50 @@
+{# Consolidated result of one match: per round TEC / PRES / round score, then averages and the match score. #}
+{% macro fmt2(value) -%}
+  {{ "%.2f"|format(value|float) if value is not none else "-" }}
+{%- endmacro %}
+{% set result_rounds = (match.competitor_results[0].rounds if match.competitor_results else []) %}
+<div class="overflow-x-auto">
+  <table class="min-w-full divide-y divide-slate-200 text-sm" data-match-result="{{ match.match_id }}">
+    <thead class="bg-slate-50 text-left text-slate-600">
+      <tr>
+        <th class="px-3 py-2 font-semibold">{{ t('common.side') }}</th>
+        <th class="px-3 py-2 font-semibold">{{ t('common.competitor') }}</th>
+        {% for round in result_rounds %}
+          <th class="px-3 py-2 font-semibold">{{ t('results.round_column', number=round.round_number) }}</th>
+        {% endfor %}
+        <th class="px-3 py-2 font-semibold">{{ t('results.technique') }}</th>
+        <th class="px-3 py-2 font-semibold">{{ t('results.presentation') }}</th>
+        <th class="px-3 py-2 font-semibold">{{ t('results.final') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in match.competitor_results %}
+      <tr class="border-b border-slate-100" data-side="{{ row.side }}">
+        <td class="px-3 py-2 font-semibold text-slate-700">{{ t('scoreboard.red') if row.side == 'red' else t('scoreboard.blue') }}</td>
+        <td class="px-3 py-2 text-slate-700">
+          {{ row.competitor_name }}
+          {% if match.winner_side == row.side %}
+            <span class="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800"><i data-lucide="trophy" class="h-3 w-3"></i>{{ t('results.winner') }}</span>
+          {% endif %}
+        </td>
+        {% for round in row.rounds %}
+          <td class="px-3 py-2 text-slate-700" data-round="{{ round.round_number }}">
+            <span class="font-bold">{{ fmt2(round.score) }}</span>
+            <span class="block text-xs text-slate-500">{{ t('results.technique') }} {{ fmt2(round.tec_score) }} · {{ t('results.presentation') }} {{ fmt2(round.pres_score) }}</span>
+          </td>
+        {% endfor %}
+        <td class="px-3 py-2 text-slate-700" data-score="technique">{{ fmt2(row.tec_score) }}</td>
+        <td class="px-3 py-2 text-slate-700" data-score="presentation">{{ fmt2(row.pres_score) }}</td>
+        <td class="px-3 py-2 text-base font-extrabold text-brand-700" data-score="final">{{ fmt2(row.final_score) }}</td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="5" class="px-3 py-6 text-center text-slate-500">{{ t('match_detail.no_results') }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mt-2 text-xs text-slate-500">
+  {{ t('results.judges_finalized', finalized=match.judges_finalized, required=match.judges_required) }}{% if match.judge_names %} · {{ t('common.judges') }}: {{ match.judge_names|join(', ') }}{% endif %}
+</p>

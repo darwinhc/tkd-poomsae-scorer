@@ -1,0 +1,272 @@
+{% set debug_mode = is_debug|default(false) %}
+{% set live_mode = not debug_mode %}
+{% macro fmt2(value) -%}
+  {{ "%.2f"|format(value|float) if value is not none else "-" }}
+{%- endmacro %}
+{% macro fmt1(value) -%}
+  {{ "%.1f"|format(value|float) if value is not none else "-" }}
+{%- endmacro %}
+{% set panel_bg = "bg-slate-900 text-white" %}
+{% if view.consolidated.all_finalized and view.consolidated.red_score is not none and view.consolidated.blue_score is not none %}
+  {% set red_display_score = view.consolidated.red_score %}
+  {% set blue_display_score = view.consolidated.blue_score %}
+{% else %}
+  {% set red_display_score = view.current_red_score %}
+  {% set blue_display_score = view.current_blue_score %}
+{% endif %}
+{% if view.consolidated.winner_side %}
+  {% set winner_side = view.consolidated.winner_side %}
+{% elif red_display_score is none or blue_display_score is none %}
+  {% set winner_side = none %}
+{% elif red_display_score > blue_display_score %}
+  {% set winner_side = "red" %}
+{% elif blue_display_score > red_display_score %}
+  {% set winner_side = "blue" %}
+{% else %}
+  {% set winner_side = "draw" %}
+{% endif %}
+{% set score_font_class = "text-[clamp(4rem,15vh,14rem)] leading-[0.85]" if not debug_mode else "text-5xl" %}
+{% set current_round_number = active_match.current_round if active_match else (view.current_round if view.current_round else 1) %}
+{% set root_class = "js-scoreboard-root h-full overflow-hidden rounded-none bg-slate-900 p-4 text-white md:rounded-3xl md:p-6" if live_mode else "js-scoreboard-root rounded-3xl bg-slate-900 p-6 text-white shadow-panel" %}
+{% set score_block_class = "grid gap-3 md:grid-cols-2" if live_mode else "grid gap-4 md:grid-cols-2" %}
+{% set info_section_class = "mt-4" if live_mode else "mt-5 rounded-2xl bg-white/10 p-4" %}
+{% set judges_card_class = "rounded-2xl border border-white/15 bg-transparent p-3" if live_mode else "mt-4 rounded-xl bg-white/10 p-4" %}
+{% set current_poomsae = none %}
+{% set non_official_judge_mode = view.judges_required not in [3, 5, 7] %}
+{% if view.match_poomsaes and (view.match_poomsaes|length) >= current_round_number %}
+  {% set current_poomsae = view.match_poomsaes[current_round_number - 1] %}
+{% endif %}
+
+<section class="{{ root_class }}" data-winner="{{ winner_side or 'pending' }}" data-active-match-id="{{ view.current_match_id or '' }}">
+  {% if not debug_mode and view.consolidated.all_finalized %}
+    {% if winner_side == "red" %}
+      {% set winner_name = view.competitor_left_name or t('scoreboard.red_upper') %}
+      {% set winner_container_class = "bg-red-600 text-white" %}
+    {% elif winner_side == "blue" %}
+      {% set winner_name = view.competitor_right_name or t('scoreboard.blue_upper') %}
+      {% set winner_container_class = "bg-blue-700 text-white" %}
+    {% elif winner_side == "rematch" %}
+      {% set winner_name = t('winner.rematch') %}
+      {% set winner_container_class = "bg-slate-500 text-white" %}
+    {% else %}
+      {% set winner_name = t('scoreboard.tie') %}
+      {% set winner_container_class = "bg-slate-500 text-white" %}
+    {% endif %}
+    <section class="js-winner-overlay fixed inset-x-0 top-0 z-[90] px-5 pt-4 md:px-8 md:pt-6" data-winner-match-id="{{ view.current_match_id or '' }}">
+      <div class="mx-auto max-w-7xl rounded-3xl {{ winner_container_class }} px-6 py-7 text-center shadow-panel">
+        <p class="text-sm font-extrabold uppercase tracking-[0.2em] opacity-90">
+        {{ t('scoreboard.final_result') if winner_side in ("draw", "rematch") else t('scoreboard.winning_competitor') }}
+        </p>
+        <h3 class="mt-2 text-3xl font-black md:text-6xl">{{ winner_name }}</h3>
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      {% if debug_mode %}
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">{{ t('scoreboard.station_screen') }}</p>
+      {% endif %}
+      <h2 class="text-2xl font-extrabold">{{ view.station_name }}</h2>
+      {% if view.match_category_label %}
+        <p class="{{ 'mt-1 text-xs font-semibold uppercase tracking-wider opacity-90' if debug_mode else 'mt-2 text-xl font-extrabold tracking-wide opacity-95' }}">
+          {{ t('scoreboard.category', category=view.match_category_label) }}
+        </p>
+      {% endif %}
+      {% if debug_mode %}
+        <p class="mt-1 text-xs font-semibold opacity-90">
+          {{ t('scoreboard.connected_judges', count=view.connected_judges_count) }} | {{ t(view.scoring_mode_label_key, count=view.connected_judges_count) }}
+        </p>
+      {% endif %}
+    </div>
+    {% if debug_mode and view.current_match_status %}
+      <div class="rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold">
+        {{ t('common.status') }}: {{ view.current_match_status|status_label }}{% if view.current_round and view.total_rounds %} | {{ t('common.round') }} {{ view.current_round }}/{{ view.total_rounds }}{% endif %}
+      </div>
+    {% elif not debug_mode %}
+      <div class="rounded-xl bg-white/15 px-4 py-2 text-center text-sm font-semibold">
+        {{ t('scoreboard.round_label', number=current_round_number) }}{% if current_poomsae %}: {{ current_poomsae }}{% endif %}
+      </div>
+    {% endif %}
+    <div class="rounded-xl bg-white/15 px-4 py-2 text-center">
+      <p class="text-xs font-semibold uppercase tracking-wider opacity-90">{{ t('scoreboard.round_timer') }}</p>
+      <p
+        class="js-round-timer text-2xl font-extrabold"
+        data-timer-status="{{ active_match.timer_status if active_match else 'idle' }}"
+        data-elapsed-seconds="{{ active_match.elapsed_seconds if active_match else 0 }}"
+        data-timer-reference-started-at="{{ active_match.timer_reference_started_at if active_match and active_match.timer_reference_started_at else '' }}"
+      >00:00:00</p>
+    </div>
+  </div>
+
+  {% if non_official_judge_mode %}
+    <section class="mb-4 rounded-2xl border border-rose-300 bg-rose-600/90 px-4 py-3 text-white">
+      <p class="text-sm font-extrabold">{{ t('scoreboard.non_official_warning', count=view.judges_required) }}</p>
+    </section>
+  {% endif %}
+
+  {% if view.match_poomsaes %}
+    <section class="mb-4 rounded-2xl bg-white/10 p-4">
+      <div class="mb-2 flex items-center gap-2">
+        <i data-lucide="dice-5" class="h-4 w-4"></i>
+        <p class="text-sm font-bold">Poomsaes</p>
+      </div>
+      {% if debug_mode %}
+        <div class="flex flex-wrap gap-2 text-sm">
+          {% for poomsae in view.match_poomsaes %}
+            <span class="rounded-lg bg-white/15 px-3 py-1 font-semibold">{{ poomsae }}</span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="grid gap-2 text-sm md:grid-cols-2">
+          {% for poomsae in view.match_poomsaes %}
+            <p class="rounded-lg bg-white/15 px-3 py-2 font-bold">{{ t('scoreboard.round_label', number=loop.index) }}: {{ poomsae }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <div class="{{ score_block_class }}">
+    {% for side in ["red", "blue"] %}
+      {% set card = (view.side_scorecards|selectattr("side", "equalto", side)|list|first) if view.side_scorecards else none %}
+      {% set side_total = red_display_score if side == "red" else blue_display_score %}
+      <article class="flex min-h-0 flex-col rounded-2xl {{ 'bg-red-600/85' if side == 'red' else 'bg-blue-700/85' }} p-5 text-white" data-side="{{ side }}">
+        <p class="text-xs font-semibold uppercase tracking-wider opacity-80">{{ t('scoreboard.red') if side == "red" else t('scoreboard.blue') }}</p>
+        <p class="truncate text-lg font-bold">{{ (view.competitor_left_name if side == "red" else view.competitor_right_name) or t('scoreboard.no_competitor') }}</p>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-wider opacity-90">{{ t('scoreboard.total_score') }}</p>
+        <p class="mt-2 {{ score_font_class }} font-extrabold" data-score="total">{{ fmt2(side_total) }}</p>
+        {% if card and card.rounds %}
+          <div class="mt-3 min-h-0 overflow-hidden rounded-xl bg-black/20 p-2">
+            <table class="w-full table-fixed text-[clamp(0.8rem,1.8vh,1.5rem)] font-bold tabular-nums" data-side-scorecard="{{ side }}">
+              <thead>
+                <tr class="text-[clamp(0.7rem,1.4vh,1.1rem)] uppercase tracking-wider opacity-80">
+                  <th class="w-[22%] px-1 py-1 text-left"></th>
+                  {% for judge in view.judge_columns %}
+                    <th class="px-1 py-1 text-center" data-judge-alias="{{ judge.alias }}">{{ judge.alias }}</th>
+                  {% endfor %}
+                  <th class="px-1 py-1 text-right">{{ t('scoreboard.consolidated_short') }}</th>
+                </tr>
+              </thead>
+              {% for round in card.rounds %}
+                <tbody data-round="{{ round.round_number }}">
+                  <tr class="border-t border-white/20">
+                    <td colspan="{{ (view.judge_columns|length) + 2 }}" class="px-1 pt-1 text-left text-[clamp(0.7rem,1.4vh,1.1rem)] font-extrabold uppercase tracking-wider opacity-90">
+                      {{ t('scoreboard.round_label', number=round.round_number) }}{% if round.poomsae %}: {{ round.poomsae }}{% endif %}
+                    </td>
+                  </tr>
+                  {% for row_key, row in [("technique", round.technique), ("presentation", round.presentation)] %}
+                    <tr data-row="{{ row_key }}">
+                      <td class="px-1 py-0.5 text-left opacity-90">{{ t('scoreboard.row_technique') if row_key == "technique" else t('scoreboard.row_presentation') }}</td>
+                      {% for value in row.judge_values %}
+                        <td class="px-1 py-0.5 text-center" data-judge-alias="{{ view.judge_columns[loop.index0].alias if view.judge_columns|length > loop.index0 else '' }}">{{ fmt1(value) }}</td>
+                      {% endfor %}
+                      <td class="px-1 py-0.5 text-right" data-consolidated="{{ row_key }}">{{ fmt2(row.consolidated) }}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr data-row="score">
+                    <td colspan="{{ (view.judge_columns|length) + 1 }}" class="px-1 py-0.5 text-left opacity-90">{{ t('scoreboard.row_round_score') }}</td>
+                    <td class="px-1 py-0.5 text-right text-[clamp(0.9rem,2.2vh,1.8rem)] font-black" data-consolidated="score">{{ fmt2(round.round_score) }}</td>
+                  </tr>
+                </tbody>
+              {% endfor %}
+            </table>
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+
+  <section class="{{ info_section_class }}">
+    {% if debug_mode %}
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-lg font-extrabold">{{ t('scoreboard.judges_consolidated') }}</h3>
+        <span class="rounded-lg bg-white/15 px-3 py-1 text-sm font-semibold">
+          {{ t('scoreboard.judges_finalized', finalized=view.consolidated.judges_finalized, required=view.consolidated.judges_required) }}
+        </span>
+      </div>
+
+      {% if view.consolidated.all_finalized %}
+        <div class="grid gap-3 md:grid-cols-2">
+          <p class="rounded-xl bg-white/10 px-3 py-2 text-lg font-bold">{{ t('scoreboard.red_consolidated') }}: {{ fmt2(view.consolidated.red_score) }}</p>
+          <p class="rounded-xl bg-white/10 px-3 py-2 text-lg font-bold">{{ t('scoreboard.blue_consolidated') }}: {{ fmt2(view.consolidated.blue_score) }}</p>
+        </div>
+        <p class="mt-3 rounded-xl bg-white/15 px-3 py-3 text-center text-2xl font-extrabold">
+          {{ t(view.consolidated.winner_label_key) if view.consolidated.winner_label_key else '' }}
+        </p>
+      {% else %}
+        <p class="rounded-xl bg-white/10 px-3 py-3 text-sm font-semibold">
+          {{ t('scoreboard.waiting_for_judges') }}
+        </p>
+      {% endif %}
+    {% endif %}
+
+    <article class="{{ judges_card_class }}">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-lg font-extrabold">{{ t('scoreboard.judges_status') }}</h3>
+        {% if view.current_match_id %}
+          <span class="rounded-lg bg-white/15 px-3 py-1 text-xs font-semibold">
+            {{ t('scoreboard.judges_finalized', finalized=view.consolidated.judges_finalized, required=view.consolidated.judges_required) }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for judge in view.judge_finalization %}
+          {% if judge.removed %}
+            {% set judge_state = "removed" %}
+          {% elif judge.finalized and judge.reconciled %}
+            {% set judge_state = "finalized" %}
+          {% elif judge.finalized %}
+            {% set judge_state = "pending_reconciliation" %}
+          {% elif judge.connected %}
+            {% set judge_state = "connected" %}
+          {% else %}
+            {% set judge_state = "disconnected" %}
+          {% endif %}
+          <span
+            class="inline-flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-bold {{ 'bg-emerald-500/85 text-white' if judge_state == 'finalized' else 'bg-amber-500/90 text-slate-900' if judge_state == 'pending_reconciliation' else 'bg-slate-700 text-slate-100' if judge_state == 'connected' else 'bg-slate-800 text-slate-400' }}"
+            data-judge-alias="{{ judge.alias }}"
+            data-judge-status="{{ judge_state }}"
+            title="{{ judge.judge_name }}"
+          >
+            {% if judge_state == "finalized" %}
+              <i data-lucide="check-circle-2" class="h-3.5 w-3.5"></i>
+            {% elif judge_state == "pending_reconciliation" %}
+              <i data-lucide="alert-triangle" class="h-3.5 w-3.5"></i>
+            {% elif judge_state == "connected" %}
+              <i data-lucide="clock-3" class="h-3.5 w-3.5"></i>
+            {% elif judge_state == "removed" %}
+              <i data-lucide="user-x" class="h-3.5 w-3.5"></i>
+            {% else %}
+              <i data-lucide="wifi-off" class="h-3.5 w-3.5"></i>
+            {% endif %}
+            {{ judge.alias }}{% if debug_mode %} {{ judge.judge_name }}{% endif %}:
+            {% if judge_state == "finalized" %}{{ t('scoreboard.judge_finalized') }}{% elif judge_state == "pending_reconciliation" %}{{ t('scoreboard.judge_pending_reconciliation') }}{% elif judge_state == "connected" %}{{ t('scoreboard.judge_connected') }}{% elif judge_state == "removed" %}{{ t('scoreboard.judge_removed') }}{% else %}{{ t('scoreboard.judge_disconnected') }}{% endif %}
+          </span>
+        {% else %}
+          {% if debug_mode %}
+          <span class="rounded-lg bg-slate-700 px-3 py-1 text-xs font-semibold text-slate-100">{{ t('scoreboard.no_connected_judges') }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% if view.current_match_id and not view.consolidated.all_finalized %}
+        <p class="mt-2 text-xs font-semibold opacity-80">{{ t('scoreboard.live_partial') }}</p>
+      {% endif %}
+    </article>
+
+    {% if debug_mode %}
+      <article class="relative z-10 mt-4 rounded-xl bg-white/10 p-4">
+        <h3 class="mb-3 text-lg font-extrabold">{{ t('scoreboard.judge_deltas') }}</h3>
+        <div class="grid gap-2">
+          {% for event in view.judge_delta_events %}
+            <p class="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold" data-judge-alias="{{ event.alias }}" data-side="{{ event.athlete_side }}" data-score-target="{{ event.score_target }}">
+              {{ t('scoreboard.delta_line', sequence=event.sequence, alias=event.alias, judge=event.judge_name, round=event.round_number, side=(t('scoreboard.red') if event.athlete_side == 'red' else t('scoreboard.blue')), target=t('score_target.' ~ (event.score_target|lower)), delta=event.score_delta, after=(event.score_after if event.score_after is not none else '-')) }}
+            </p>
+          {% else %}
+            <p class="rounded-xl bg-white/10 px-3 py-3 text-sm font-semibold">{{ t('scoreboard.no_deltas') }}</p>
+          {% endfor %}
+        </div>
+      </article>
+    {% endif %}
+  </section>
+</section>

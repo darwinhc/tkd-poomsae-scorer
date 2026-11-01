@@ -1,0 +1,13 @@
+{
+  "name": "tkd-scorer-admin-assets",
+  "private": true,
+  "description": "Build tooling for the offline admin panel CSS",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i tailwind.input.css -o ../src/tkd_scorer/infra/static/admin/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.10",
+    "@tailwindcss/typography": "0.5.16",
+    "tailwindcss": "3.4.17"
+  }
+}

@@ -1,0 +1,12 @@
+export const DEFAULT_STARTING_SCORE = 4;
+export const DEFAULT_PRESENTATION_CATEGORY_START = 2;
+export const PRESENTATION_CATEGORY_MAX_SCORE = 2;
+export const DEFAULT_ACTION_VALUE_1 = 0.1;
+export const DEFAULT_ACTION_VALUE_2 = 0.3;
+export const DEFAULT_ROUNDS = 2;
+export const MIN_RETAINED_MATCHES = 2;
+export const DEFAULT_RETAINED_MATCHES = 2;
+export const DEFAULT_STATION_ID = 'station-01';
+export const LOCAL_OFFLINE_STATION_NAME = 'Local mode';
+export const DEFAULT_PREFERRED_RED_SIDE = 'LEFT';
+export const APP_PROTOCOL_VERSION = 'v1';

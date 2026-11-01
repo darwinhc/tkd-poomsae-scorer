@@ -1,0 +1,202 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('station_detail.title', station_id=view.station_id) }}{% endblock %}
+{% block content %}
+<section class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h2 class="flex items-center gap-2 text-2xl font-extrabold text-slate-900">
+      <i data-lucide="monitor-smartphone" class="h-6 w-6 text-brand-700"></i>{{ view.station_name }}
+    </h2>
+    <p class="text-sm text-slate-500">ID: {{ view.station_id }}</p>
+  </div>
+  <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+    <i data-lucide="dot" class="h-4 w-4"></i>{{ t('common.status') }}: {{ view.status|status_label }}
+  </span>
+</section>
+
+<div id="active-match-panel" class="mb-5">
+  {% include "admin/_active_match_panel.html" with context %}
+</div>
+
+{% include "admin/_station_match_config_panel.html" with context %}
+
+<section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+  <h3 class="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900">
+    <i data-lucide="users" class="h-5 w-5 text-emerald-600"></i>{{ t('station_detail.active_judges') }}
+  </h3>
+  {% if view.active_sessions %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-slate-600">
+          <tr>
+            <th class="px-3 py-2 font-semibold">{{ t('common.judge') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.device') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('station_detail.col_connection') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.status') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for item in view.active_sessions %}
+          <tr class="border-b border-slate-100">
+            <td class="px-3 py-2 text-slate-700">{{ item.judge_name }}</td>
+            <td class="px-3 py-2 text-slate-700">{{ item.device_id }}</td>
+            <td class="px-3 py-2">
+              {% if item.is_connected %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                  <i data-lucide="wifi" class="h-3.5 w-3.5"></i>{{ t('station_detail.connected') }}
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  <i data-lucide="wifi-off" class="h-3.5 w-3.5"></i>{{ t('station_detail.disconnected') }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-slate-700">{{ item.status|status_label }}</td>
+            <td class="px-3 py-2">
+              {% if item.is_connected %}
+                <form method="post" action="/admin/stations/{{ view.station_id }}/sessions/{{ item.session_id }}/kick" onsubmit='return confirm({{ t("station_detail.confirm_kick", name=item.judge_name)|tojson }});'>
+                  <input type="hidden" name="reason" value="operator_replaced">
+                  <input type="hidden" name="actor" value="local-admin">
+                  <button class="inline-flex items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-amber-400" type="submit">
+                    <i data-lucide="user-x" class="h-3.5 w-3.5"></i>{{ t('station_detail.kick_judge') }}
+                  </button>
+                </form>
+              {% else %}
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                    <i data-lucide="minus-circle" class="h-3.5 w-3.5"></i>{{ t('station_detail.not_connected') }}
+                  </span>
+                  <form method="post" action="/admin/stations/{{ view.station_id }}/sessions/{{ item.session_id }}/kick" onsubmit='return confirm({{ t("station_detail.confirm_delete_connection", name=item.judge_name)|tojson }});'>
+                    <input type="hidden" name="reason" value="disconnected_cleanup">
+                    <input type="hidden" name="actor" value="local-admin">
+                    <button class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700" type="submit">
+                      <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>{{ t('station_detail.delete_connection') }}
+                    </button>
+                  </form>
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-sm text-slate-500">{{ t('station_detail.no_sessions') }}</p>
+  {% endif %}
+</section>
+
+<div id="live-panel" class="mb-5">
+  {% include "admin/_station_live_panel.html" with context %}
+</div>
+
+<section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+  <h3 class="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900">
+    <i data-lucide="settings-2" class="h-5 w-5 text-brand-700"></i>{{ t('station_detail.station_admin') }}
+  </h3>
+  <form method="post" action="/admin/stations/{{ view.station_id }}/delete" onsubmit='return confirm({{ t("stations.confirm_delete")|tojson }});'>
+    <input type="hidden" name="actor" value="local-admin">
+    <button class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700" type="submit">
+      <i data-lucide="trash-2" class="h-4 w-4"></i>{{ t('station_detail.delete_station') }}
+    </button>
+  </form>
+</section>
+
+<script>
+(() => {
+  const stationId = "{{ view.station_id }}";
+  const refreshMs = {{ active_refresh_seconds }} * 1000;
+  const panel = document.getElementById("active-match-panel");
+  let timerIntervalId = null;
+
+  const formatElapsed = (totalSeconds) => {
+    const safe = Math.max(0, Number(totalSeconds) || 0);
+    const hours = String(Math.floor(safe / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, "0");
+    const seconds = String(safe % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const initRoundTimer = () => {
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      timerIntervalId = null;
+    }
+    const timerNode = panel.querySelector(".js-round-timer");
+    if (!timerNode) {
+      return;
+    }
+
+    const status = timerNode.dataset.timerStatus || "idle";
+    let elapsedSeconds = Number.parseInt(timerNode.dataset.elapsedSeconds || "0", 10);
+    if (!Number.isFinite(elapsedSeconds) || elapsedSeconds < 0) {
+      elapsedSeconds = 0;
+    }
+    const referenceStartedAt = timerNode.dataset.timerReferenceStartedAt || "";
+    if (status === "running" && referenceStartedAt) {
+      const startedAtMs = Date.parse(referenceStartedAt);
+      if (Number.isFinite(startedAtMs)) {
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+      }
+    }
+
+    timerNode.textContent = formatElapsed(elapsedSeconds);
+    if (status === "running") {
+      timerIntervalId = window.setInterval(() => {
+        elapsedSeconds += 1;
+        timerNode.textContent = formatElapsed(elapsedSeconds);
+      }, 1000);
+    }
+  };
+
+  const refresh = async () => {
+    try {
+      const response = await fetch(
+        `/admin/stations/${stationId}/active-match/panel`,
+        { headers: { "X-Requested-With": "fetch" } },
+      );
+      if (!response.ok) {
+        return;
+      }
+      panel.innerHTML = await response.text();
+      window.tkdRenderIcons?.();
+      initRoundTimer();
+    } catch (_error) {
+      // Keep UI stable on transient network issues.
+    }
+  };
+
+  initRoundTimer();
+  setInterval(refresh, refreshMs);
+})();
+</script>
+
+{% if reveal %}
+<script>
+(() => {
+  const stationId = "{{ view.station_id }}";
+  const refreshMs = {{ live_refresh_seconds }} * 1000;
+  const livePanel = document.getElementById("live-panel");
+
+  const refresh = async () => {
+    try {
+      const response = await fetch(`/admin/stations/${stationId}/live-panel?auto_rotate=1&reveal=1`, {
+        headers: {"X-Requested-With": "fetch"},
+      });
+      if (!response.ok) {
+        return;
+      }
+      livePanel.innerHTML = await response.text();
+      if (window.tkdRenderIcons) {
+        window.tkdRenderIcons();
+      }
+    } catch (_error) {
+      // Keep UI stable if polling fails temporarily.
+    }
+  };
+
+  setInterval(refresh, refreshMs);
+})();
+</script>
+{% endif %}
+{% endblock %}

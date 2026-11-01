@@ -1,0 +1,35 @@
+# Secrets and local runtime state
+.env
+!.env.example
+backend/data/
+backend/logs/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+build/
+dist/
+
+# Judge app (Expo / React Native)
+node_modules/
+.expo/
+.expo-shared/
+judge-app/android/
+judge-app/ios/
+judge-app/expo-env.d.ts
+coverage/
+*.apk
+*.aab
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.log

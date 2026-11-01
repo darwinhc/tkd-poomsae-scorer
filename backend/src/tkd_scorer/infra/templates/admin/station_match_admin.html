@@ -1,0 +1,367 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('match_admin.page_title', station_id=view.station_id) }}{% endblock %}
+{% block content %}
+<section class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex items-center gap-2">
+    <i data-lucide="clipboard-pen-line" class="h-6 w-6 text-brand-700"></i>
+    <h2 class="text-2xl font-extrabold text-slate-900">{{ t('match_admin.heading') }}</h2>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-bold text-slate-700">
+      {{ t('scoreboard.connected_judges', count=view.connected_judges_count) }}
+    </span>
+    <span class="rounded-lg {{ 'bg-emerald-100 text-emerald-800' if view.scoring_mode_valid else 'bg-amber-100 text-amber-800' }} px-3 py-1.5 text-sm font-bold">
+      {{ t(view.scoring_mode_label_key, count=view.connected_judges_count) }}
+    </span>
+    <a class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-brand-700" href="/scoreboard/{{ view.station_id }}">
+      {{ t('common.station_scoreboard') }}
+    </a>
+    <a class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-800" href="/admin/stations/{{ view.station_id }}">
+      {{ t('match_admin.back_to_station') }}
+    </a>
+  </div>
+</section>
+
+<section class="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+  <h3 class="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900">
+    <i data-lucide="users" class="h-5 w-5 text-emerald-600"></i>{{ t('stations.col_connected_judges') }}
+  </h3>
+  {% if view.connected_judges %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-slate-600">
+          <tr>
+            <th class="px-3 py-2 font-semibold">{{ t('common.session') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.judge') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.device') }}</th>
+            <th class="px-3 py-2 font-semibold">{{ t('common.status') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for item in view.connected_judges %}
+          <tr class="border-b border-slate-100">
+            <td class="px-3 py-2 font-semibold text-slate-700">{{ item.session_id }}</td>
+            <td class="px-3 py-2 text-slate-700">{{ item.judge_name }}</td>
+            <td class="px-3 py-2 text-slate-700">{{ item.device_id }}</td>
+            <td class="px-3 py-2 text-slate-700">{{ item.status|status_label }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-sm text-slate-500">{{ t('match_admin.no_connected_judges') }}</p>
+  {% endif %}
+</section>
+
+{% if view.has_active_match %}
+  <section class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-panel">
+    <h3 class="text-lg font-extrabold text-amber-900">{{ t('match_admin.already_active') }}</h3>
+    <p class="mt-2 text-sm text-amber-800">
+      {{ t('match_admin.competitors_line', left=view.competitor_left_name or t('match_setup.default_red_name'), right=view.competitor_right_name or t('match_setup.default_blue_name')) }}
+      {{ t('match_admin.check_scoreboard_hint') }}
+    </p>
+    <a class="mt-3 inline-flex items-center gap-1 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700" href="/scoreboard/{{ view.station_id }}">
+      <i data-lucide="monitor-play" class="h-4 w-4"></i>{{ t('match_admin.go_to_live_scoreboard') }}
+    </a>
+  </section>
+{% else %}
+  <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-panel">
+    <div class="mb-4 flex items-start gap-3">
+      <span class="rounded-xl bg-brand-100 p-2 text-brand-700">
+        <i data-lucide="swords" class="h-5 w-5"></i>
+      </span>
+      <div>
+        <h3 class="text-xl font-extrabold text-slate-900">{{ t('match_setup.start_match') }}</h3>
+        <p class="text-sm text-slate-600">{{ t('match_admin.start_hint') }}</p>
+      </div>
+    </div>
+
+    {% if start_error %}
+      <div class="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        {{ start_error }}
+      </div>
+    {% endif %}
+
+    {% set _form = form_data or {} %}
+    {% set _fallback_category_id = view.start_view.categories[0].category_id if view.start_view.categories else 'beginners' %}
+    {% set _selected_category_id = _form.get('category_id') or view.match_category_id or _fallback_category_id %}
+    {% set ns = namespace(selected_category_label='', default_poomsaes=[]) %}
+    {% for category in view.start_view.categories %}
+      {% if category.category_id == _selected_category_id %}
+        {% set ns.selected_category_label = category.category_label %}
+        {% set ns.default_poomsaes = category.poomsaes %}
+      {% endif %}
+    {% endfor %}
+    {% if not ns.default_poomsaes and view.start_view.categories %}
+      {% set _selected_category_id = view.start_view.categories[0].category_id %}
+      {% set ns.selected_category_label = view.start_view.categories[0].category_label %}
+      {% set ns.default_poomsaes = view.start_view.categories[0].poomsaes %}
+    {% endif %}
+    {% set _selected_poomsaes = _form.get('selected_poomsaes', []) %}
+    {% if not _selected_poomsaes %}
+      {% set _selected_poomsaes = ns.default_poomsaes %}
+    {% endif %}
+    {% set _drawn_poomsaes = (draw_preview.drawn_poomsaes if draw_preview else _form.get('drawn_poomsaes', [])) %}
+
+    <form method="post" action="/admin/stations/{{ view.station_id }}/matches/start" class="grid gap-4 md:grid-cols-2" id="start-match-form">
+      <label class="text-sm font-semibold text-slate-700">
+        {{ t('match_setup.red_competitor') }}
+        <input
+          class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+          type="text"
+          name="competitor_left_name"
+          placeholder="{{ t('match_setup.red_name_placeholder') }}"
+          value="{{ _form.get('competitor_left_name', t('match_setup.default_red_name')) }}"
+          required
+        >
+      </label>
+      <label class="text-sm font-semibold text-slate-700">
+        {{ t('match_setup.blue_competitor') }}
+        <input
+          class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+          type="text"
+          name="competitor_right_name"
+          placeholder="{{ t('match_setup.blue_name_placeholder') }}"
+          value="{{ _form.get('competitor_right_name', t('match_setup.default_blue_name')) }}"
+          required
+        >
+      </label>
+
+      <section class="md:col-span-2">
+        <p class="mb-1 text-sm font-semibold text-slate-700">{{ t('match_setup.selected_category') }}</p>
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <select
+            id="category-select"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+            name="category_id"
+            required
+          >
+          {% for category in view.start_view.categories %}
+            <option value="{{ category.category_id }}" {{ 'selected' if _selected_category_id == category.category_id else '' }}>
+              {{ category.category_label }}
+            </option>
+          {% endfor %}
+          </select>
+        </div>
+      </section>
+
+      <section class="md:col-span-2">
+        <div class="mb-2 flex flex-wrap items-center gap-2">
+          <h4 class="text-sm font-bold text-slate-800">{{ t('match_setup.enabled_poomsaes') }}</h4>
+          <button id="toggle-other-poomsaes-btn" type="button" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <i data-lucide="chevrons-up-down" class="h-4 w-4"></i>{{ t('match_setup.show_other_poomsaes') }}
+          </button>
+        </div>
+        <p class="mb-3 text-xs text-slate-500">{{ t('match_setup.poomsaes_hint') }}</p>
+
+        {% for category in view.start_view.categories %}
+          <div
+            class="category-poomsaes {{ '' if category.category_id == _selected_category_id else 'hidden' }} rounded-xl border border-slate-200 bg-slate-50 p-3"
+            data-category="{{ category.category_id }}"
+          >
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {{ category.category_label }}
+            </p>
+            <div class="grid gap-2 md:grid-cols-3">
+              {% for poomsae in category.poomsaes %}
+                <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    name="selected_poomsaes"
+                    value="{{ poomsae }}"
+                    data-poomsae-category="{{ category.category_id }}"
+                    class="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    {{ 'checked' if poomsae in _selected_poomsaes else '' }}
+                  >
+                  <span>{{ poomsae }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </section>
+
+      {% if draw_preview %}
+        <section id="draw-preview" class="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <p class="mb-2 font-bold">{{ t('match_setup.draw_generated_for', category=draw_preview.category_label) }}</p>
+          <div class="flex flex-wrap gap-2">
+            {% for item in draw_preview.drawn_poomsaes %}
+              <span class="rounded-lg bg-emerald-100 px-3 py-1 text-xs font-semibold">{{ item }}</span>
+              <input type="hidden" name="drawn_poomsaes" value="{{ item }}">
+            {% endfor %}
+          </div>
+        </section>
+      {% elif _drawn_poomsaes %}
+        <section id="draw-preview" class="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <p class="mb-2 font-bold">{{ t('match_setup.draw_generated') }}</p>
+          <div class="flex flex-wrap gap-2">
+            {% for item in _drawn_poomsaes %}
+              <span class="rounded-lg bg-emerald-100 px-3 py-1 text-xs font-semibold">{{ item }}</span>
+              <input type="hidden" name="drawn_poomsaes" value="{{ item }}">
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section id="draw-preview" class="md:col-span-2 hidden rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"></section>
+      {% endif %}
+
+      <div id="draw-error" class="md:col-span-2 hidden rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700"></div>
+
+      <input type="hidden" name="total_rounds" value="{{ _form.get('total_rounds', 2) }}">
+      <input type="hidden" name="actor" value="local-admin">
+
+      <div class="md:col-span-2 flex flex-wrap gap-2">
+        <button id="draw-poomsaes-btn" class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700" type="button">
+          <i data-lucide="dice-5" class="h-4 w-4"></i>{{ t('match_setup.draw_poomsaes') }}
+        </button>
+        <button class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700" type="submit">
+          <i data-lucide="play" class="h-4 w-4"></i>{{ t('match_setup.start_match') }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <script>
+  (() => {
+    const i18n = {
+      drawFailed: {{ t('match_setup.draw_failed')|tojson }},
+      drawing: {{ t('match_setup.drawing')|tojson }},
+      drawGeneratedPrefix: {{ t('match_setup.draw_generated')|tojson }},
+      hide: {{ t('match_setup.hide')|tojson }},
+      showOtherPoomsaes: {{ t('match_setup.show_other_poomsaes')|tojson }},
+    };
+    const categorySelect = document.getElementById("category-select");
+    const groups = document.querySelectorAll(".category-poomsaes");
+    const toggleOtherPoomsaesButton = document.getElementById("toggle-other-poomsaes-btn");
+    const checkboxes = document.querySelectorAll('input[name="selected_poomsaes"]');
+    const form = document.getElementById("start-match-form");
+    const drawButton = document.getElementById("draw-poomsaes-btn");
+    const drawPreview = document.getElementById("draw-preview");
+    const drawError = document.getElementById("draw-error");
+    let showOtherPoomsaes = false;
+
+    const clearDrawPreview = () => {
+      if (!drawPreview || !form) {
+        return;
+      }
+      drawPreview.classList.add("hidden");
+      drawPreview.innerHTML = "";
+      drawError.classList.add("hidden");
+      drawError.textContent = "";
+      form.querySelectorAll('input[name="drawn_poomsaes"]').forEach((node) => node.remove());
+    };
+
+    const syncCategorySelection = () => {
+      const selected = categorySelect?.value || "";
+      groups.forEach((group) => {
+        const groupCategory = group.getAttribute("data-category");
+        const isSelectedCategory = selected && groupCategory === selected;
+        group.classList.toggle("hidden", !isSelectedCategory && !showOtherPoomsaes);
+        group.classList.toggle("border-brand-400", Boolean(isSelectedCategory));
+        group.classList.toggle("bg-brand-50", Boolean(isSelectedCategory));
+      });
+
+      if (!selected) {
+        return;
+      }
+    };
+
+    const replaceHiddenDrawnInputs = (drawnPoomsaes) => {
+      form.querySelectorAll('input[name="drawn_poomsaes"]').forEach((node) => node.remove());
+      drawnPoomsaes.forEach((item) => {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = "drawn_poomsaes";
+        hidden.value = item;
+        form.appendChild(hidden);
+      });
+    };
+
+    const renderDrawPreview = (categoryLabel, drawnPoomsaes) => {
+      drawPreview.classList.remove("hidden");
+      const chips = drawnPoomsaes
+        .map((item) => `<span class="rounded-lg bg-emerald-100 px-3 py-1 text-xs font-semibold">${item}</span>`)
+        .join("");
+      drawPreview.innerHTML = `
+        <p class="mb-2 font-bold">${i18n.drawGeneratedPrefix} (${categoryLabel})</p>
+        <div class="flex flex-wrap gap-2">${chips}</div>
+      `;
+      drawError.classList.add("hidden");
+      drawError.textContent = "";
+      replaceHiddenDrawnInputs(drawnPoomsaes);
+      window.tkdRenderIcons?.();
+    };
+
+    const renderDrawError = (message) => {
+      drawError.classList.remove("hidden");
+      drawError.textContent = message || i18n.drawFailed;
+    };
+
+    const submitDraw = async () => {
+      if (!form || !drawButton) {
+        return;
+      }
+      drawButton.disabled = true;
+      drawButton.classList.add("opacity-70");
+      const originalHtml = drawButton.innerHTML;
+      drawButton.innerHTML = `<i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i>${i18n.drawing}`;
+      window.tkdRenderIcons?.();
+
+      try {
+        const payload = new FormData(form);
+        const response = await fetch(`/admin/stations/{{ view.station_id }}/matches/draw-preview`, {
+          method: "POST",
+          body: payload,
+          headers: { "X-Requested-With": "fetch" },
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          renderDrawError(body?.detail || i18n.drawFailed);
+          return;
+        }
+        renderDrawPreview(body.categoryLabel, body.drawnPoomsaes || []);
+      } catch (_error) {
+        renderDrawError(i18n.drawFailed);
+      } finally {
+        drawButton.disabled = false;
+        drawButton.classList.remove("opacity-70");
+        drawButton.innerHTML = originalHtml;
+        window.tkdRenderIcons?.();
+      }
+    };
+
+    const toggleOtherPoomsaes = () => {
+      if (!toggleOtherPoomsaesButton) {
+        return;
+      }
+      showOtherPoomsaes = !showOtherPoomsaes;
+      toggleOtherPoomsaesButton.innerHTML = showOtherPoomsaes
+        ? `<i data-lucide="chevron-up" class="h-4 w-4"></i>${i18n.hide}`
+        : `<i data-lucide="chevrons-up-down" class="h-4 w-4"></i>${i18n.showOtherPoomsaes}`;
+      syncCategorySelection();
+      window.tkdRenderIcons?.();
+    };
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        clearDrawPreview();
+      });
+    });
+
+    categorySelect?.addEventListener("change", () => {
+      const selected = categorySelect.value;
+      checkboxes.forEach((checkbox) => {
+        const checkboxCategory = checkbox.getAttribute("data-poomsae-category");
+        checkbox.checked = checkboxCategory === selected;
+      });
+      syncCategorySelection();
+      clearDrawPreview();
+    });
+    toggleOtherPoomsaesButton?.addEventListener("click", toggleOtherPoomsaes);
+    drawButton?.addEventListener("click", submitDraw);
+    syncCategorySelection();
+  })();
+  </script>
+{% endif %}
+{% endblock %}

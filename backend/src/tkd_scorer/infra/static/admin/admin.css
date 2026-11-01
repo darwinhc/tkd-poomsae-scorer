@@ -1,0 +1,42 @@
+.app-bg {
+  background-color: #f3f7fb;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(14, 116, 144, 0.08), transparent 42%),
+    radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.09), transparent 40%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4fa 100%);
+  min-height: 100vh;
+}
+
+body.screen-red {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(220, 38, 38, 0.2), transparent 42%),
+    linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+}
+
+body.screen-blue {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(29, 78, 216, 0.2), transparent 42%),
+    linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+body.screen-draw {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(71, 85, 105, 0.2), transparent 42%),
+    linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+}
+
+.qr-pulse {
+  animation: qrPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes qrPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.22);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(14, 116, 144, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(14, 116, 144, 0);
+  }
+}

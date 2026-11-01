@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('active_match.page_title', station_id=station.station_id) }}{% endblock %}
+{% block content %}
+<section class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h2 class="text-2xl font-extrabold text-slate-900">{{ t('active_match.control_heading') }}</h2>
+    <p class="text-sm text-slate-500">{{ station.station_name }} ({{ station.station_id }})</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a class="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800" href="/scoreboard/{{ station.station_id }}">
+      <i data-lucide="monitor-play" class="h-4 w-4"></i>{{ t('common.station_scoreboard') }}
+    </a>
+    <a class="inline-flex items-center gap-1 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-600" href="/admin/stations/{{ station.station_id }}/scoreboard/debug">
+      <i data-lucide="bug" class="h-4 w-4"></i>{{ t('common.debug_scoreboard') }}
+    </a>
+    <a class="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700" href="/admin/stations/{{ station.station_id }}">
+      <i data-lucide="settings-2" class="h-4 w-4"></i>{{ t('active_match.back_to_admin') }}
+    </a>
+  </div>
+</section>
+
+<div id="active-match-panel">
+  {% include "admin/_active_match_panel.html" with context %}
+</div>
+
+<script>
+(() => {
+  const stationId = "{{ station.station_id }}";
+  const refreshMs = {{ refresh_seconds }} * 1000;
+  const panel = document.getElementById("active-match-panel");
+
+  const refresh = async () => {
+    try {
+      const response = await fetch(
+        `/admin/stations/${stationId}/active-match/panel`,
+        { headers: { "X-Requested-With": "fetch" } },
+      );
+      if (!response.ok) {
+        return;
+      }
+      panel.innerHTML = await response.text();
+      window.tkdRenderIcons?.();
+    } catch (_error) {
+      // Keep UI stable on transient network issues.
+    }
+  };
+
+  setInterval(refresh, refreshMs);
+})();
+</script>
+{% endblock %}

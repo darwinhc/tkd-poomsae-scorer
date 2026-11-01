@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="{{ ui_language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t('base.title') }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/admin/tailwind.css">
+  <link rel="stylesheet" href="/static/admin/admin.css">
+</head>
+<body class="{{ body_class or 'app-bg text-slate-900' }}">
+  {% if not hide_admin_chrome %}
+  <header class="bg-slate-950/90 text-slate-100 shadow-panel backdrop-blur">
+    <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-3">
+          <div class="rounded-xl bg-brand-500/20 p-2 text-brand-200">
+            <i data-lucide="shield-check" class="h-5 w-5"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold tracking-tight sm:text-xl">{{ t('base.header_title') }}</h1>
+            <p class="text-xs text-slate-300">{{ t('base.header_subtitle') }}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
+          <nav class="flex flex-wrap gap-2">
+            <a
+              href="{{ admin_base_path }}"
+              class="rounded-lg px-3 py-1.5 transition {{ 'bg-brand-600 text-white' if request.url.path == '/admin' or request.url.path == '/admin/stations' else 'bg-slate-800 text-slate-200 hover:bg-slate-700' }}"
+            >
+              <i data-lucide="house" class="mr-1 inline h-4 w-4"></i>{{ t('nav.home') }}
+            </a>
+            <a
+              href="{{ admin_base_path }}/results"
+              class="rounded-lg px-3 py-1.5 transition {{ 'bg-brand-600 text-white' if request.url.path.startswith('/admin/results') else 'bg-slate-800 text-slate-200 hover:bg-slate-700' }}"
+            >
+              <i data-lucide="trophy" class="mr-1 inline h-4 w-4"></i>{{ t('nav.results') }}
+            </a>
+            <a
+              href="{{ admin_base_path }}/history"
+              class="rounded-lg px-3 py-1.5 transition {{ 'bg-brand-600 text-white' if request.url.path.startswith('/admin/history') else 'bg-slate-800 text-slate-200 hover:bg-slate-700' }}"
+            >
+              <i data-lucide="history" class="mr-1 inline h-4 w-4"></i>{{ t('nav.history') }}
+            </a>
+          </nav>
+          {% if request.app.state.settings.admin_password.strip() %}
+          <form method="post" action="{{ admin_base_path }}/logout">
+            <button
+              type="submit"
+              class="rounded-lg bg-red-700 px-3 py-1.5 text-white transition hover:bg-red-600"
+            >
+              <i data-lucide="log-out" class="mr-1 inline h-4 w-4"></i>{{ t('nav.logout') }}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main class="{{ 'px-3 py-3 sm:px-5 sm:py-5' if hide_admin_chrome else 'mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8' }}">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/vendor/lucide.min.js"></script>
+  <script>
+    window.TKD_INTERNAL_ADMIN_BASE = "/admin";
+    window.TKD_ADMIN_BASE_PATH = "{{ admin_base_path }}";
+    window.TKD_I18N = {
+      copied: {{ t('common.copied')|tojson }},
+      copy: {{ t('common.copy')|tojson }},
+    };
+
+    window.tkdMapAdminPath = (value) => {
+      const raw = String(value ?? "");
+      const internal = window.TKD_INTERNAL_ADMIN_BASE;
+      const external = window.TKD_ADMIN_BASE_PATH || internal;
+      if (external === internal) {
+        return raw;
+      }
+      if (raw === internal) {
+        return external;
+      }
+      if (raw.startsWith(`${internal}/`)) {
+        return `${external}${raw.slice(internal.length)}`;
+      }
+      return raw;
+    };
+
+    window.tkdRewriteAdminPaths = (root) => {
+      const target = root instanceof Element ? root : document;
+      const selectors = [
+        "a[href^='/admin']",
+        "form[action^='/admin']",
+        "button[formaction^='/admin']",
+        "input[formaction^='/admin']",
+        "[data-station-url^='/admin']",
+        "[hx-get^='/admin']",
+        "[hx-post^='/admin']",
+        "[hx-put^='/admin']",
+        "[hx-patch^='/admin']",
+        "[hx-delete^='/admin']",
+      ];
+      const rewriteElement = (el) => {
+        if (!(el instanceof Element)) {
+          return;
+        }
+        const attrs = [
+          "href",
+          "action",
+          "formaction",
+          "data-station-url",
+          "hx-get",
+          "hx-post",
+          "hx-put",
+          "hx-patch",
+          "hx-delete",
+        ];
+        attrs.forEach((attr) => {
+          const value = el.getAttribute(attr);
+          if (value && value.startsWith("/admin")) {
+            el.setAttribute(attr, window.tkdMapAdminPath(value));
+          }
+        });
+      };
+
+      if (target instanceof Element) {
+        rewriteElement(target);
+      }
+      target.querySelectorAll(selectors.join(",")).forEach(rewriteElement);
+    };
+
+    window.tkdRenderIcons = () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    };
+
+    window.tkdCopyText = async (text, trigger) => {
+      const payload = String(text ?? "");
+      if (!navigator.clipboard) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(payload);
+        if (trigger instanceof HTMLElement) {
+          if (!trigger.dataset.label) {
+            trigger.dataset.label = trigger.innerHTML;
+          }
+          trigger.innerHTML = `<i data-lucide="check" class="h-4 w-4"></i>${window.TKD_I18N.copied}`;
+          window.tkdRenderIcons?.();
+          setTimeout(() => {
+            trigger.innerHTML = trigger.dataset.label || window.TKD_I18N.copy;
+            window.tkdRenderIcons?.();
+          }, 1400);
+        }
+      } catch (_error) {
+        // Ignore clipboard errors to keep UI stable.
+      }
+    };
+
+    const _originalFetch = window.fetch ? window.fetch.bind(window) : null;
+    if (_originalFetch) {
+      window.fetch = (input, init) => {
+        if (typeof input === "string") {
+          return _originalFetch(window.tkdMapAdminPath(input), init);
+        }
+        if (input instanceof URL) {
+          const mapped = window.tkdMapAdminPath(input.toString());
+          return _originalFetch(mapped, init);
+        }
+        return _originalFetch(input, init);
+      };
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      window.tkdRewriteAdminPaths(document);
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof Element) {
+              window.tkdRewriteAdminPaths(node);
+            }
+          });
+        });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      window.tkdRenderIcons();
+    });
+  </script>
+</body>
+</html>

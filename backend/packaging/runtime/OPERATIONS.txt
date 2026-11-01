@@ -1,0 +1,76 @@
+POOMSAE SERVER - LOCAL OPERATION (LAN)
+======================================
+
+1) Expected folder contents
+---------------------------
+The folder must have this structure:
+
+PoomsaeServer/
+  PoomsaeServer/
+    PoomsaeServer.exe
+    ... (internal files)
+  .env
+  config/
+    poomsae_categories.yaml
+  data/
+  logs/
+  Start Admin Panel.bat
+  OPERATIONS.txt
+
+On Linux the launcher is start_admin_panel.sh and the executable is
+PoomsaeServer/PoomsaeServer.
+
+2) First use
+------------
+- Open the .env file with a text editor (for example Notepad).
+- Change at least:
+  - TKD_PUBLIC_BASE_URL (real LAN IP of the server computer)
+  - TKD_ADMIN_PASSWORD
+  - TKD_JWT_SECRET_KEY
+  - TKD_ADMIN_BASE_PATH
+- Optional: TKD_UI_LANGUAGE=en or TKD_UI_LANGUAGE=es (admin panel and
+  scoreboard language, English by default).
+- Save the file.
+
+3) Start the server
+-------------------
+- Double-click: Start Admin Panel.bat
+- A server console window will open.
+- Then the browser will open the administration panel.
+
+4) Useful URLs
+--------------
+- On this same computer:
+  http://127.0.0.1:PORT/ADMIN_PATH
+- On the local network (phones/tablets):
+  use TKD_PUBLIC_BASE_URL
+- Public TV scoreboard for a station:
+  http://SERVER_IP:PORT/scoreboard/STATION_ID
+
+Example:
+- TKD_PORT=8080
+- TKD_ADMIN_BASE_PATH=/secure-panel-x
+- Local admin: http://127.0.0.1:8080/secure-panel-x
+
+5) Files the operator may edit
+------------------------------
+- .env
+- config/poomsae_categories.yaml
+
+Do not modify .py files or any file inside PoomsaeServer/.
+
+6) Logs and data
+----------------
+- SQLite database: data/
+- Server logs: logs/tkd_server.log
+
+7) Shut down the server
+-----------------------
+- Close the server console window.
+
+8) If it does not start
+-----------------------
+- Check logs/tkd_server.log
+- Make sure .env exists
+- Make sure config/poomsae_categories.yaml exists and is valid YAML
+- Make sure the port is not used by another program

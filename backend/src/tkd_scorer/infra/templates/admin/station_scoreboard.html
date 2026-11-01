@@ -1,0 +1,194 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('scoreboard.page_title', station_id=view.station_id) }}{% endblock %}
+{% block content %}
+<div id="screen-guard" class="fixed inset-0 z-20 flex items-center justify-center bg-slate-950 p-6 text-white">
+  <section class="mx-auto w-full max-w-xl rounded-2xl border border-amber-300/40 bg-slate-900/90 p-6 text-center shadow-panel">
+    <p class="text-xs font-extrabold uppercase tracking-[0.2em] text-amber-300">{{ t('scoreboard.guard_locked') }}</p>
+    <h2 class="mt-3 text-2xl font-extrabold">{{ t('scoreboard.guard_heading') }}</h2>
+    <p class="mt-3 text-sm font-semibold text-slate-200">
+      {{ t('scoreboard.guard_requirement', width=live_min_width_px) }}
+    </p>
+    <p class="mt-1 text-xs text-slate-300">{{ t('scoreboard.guard_hint') }}</p>
+  </section>
+</div>
+
+<div id="scoreboard-shell" class="fixed inset-0 z-10 hidden overflow-hidden">
+  <div id="scoreboard-panel" class="h-full w-full">
+    {% include "admin/_station_scoreboard_panel.html" with context %}
+  </div>
+</div>
+
+<script>
+(() => {
+  const stationId = "{{ view.station_id }}";
+  const refreshMs = {{ refresh_seconds }} * 1000;
+  const winnerOverlayMs = {{ winner_overlay_seconds }} * 1000;
+  const minWidth = {{ live_min_width_px }};
+  const guard = document.getElementById("screen-guard");
+  const shell = document.getElementById("scoreboard-shell");
+  const panel = document.getElementById("scoreboard-panel");
+  panel.classList.add("relative");
+  const baselineDpr = window.devicePixelRatio || 1;
+  let timerIntervalId = null;
+  let winnerOverlayTimerId = null;
+  let dismissedWinnerMatchId = "";
+  let activeMatchId = "";
+
+  const getZoomFactor = () => {
+    const currentDpr = window.devicePixelRatio || 1;
+    let factor = currentDpr / baselineDpr;
+    if (!Number.isFinite(factor) || factor <= 0) {
+      factor = 1;
+    }
+    return Math.min(3, Math.max(0.5, factor));
+  };
+
+  const normalizedViewportWidth = () => {
+    const factor = getZoomFactor();
+    return window.innerWidth * factor;
+  };
+
+  const applyZoomNormalization = () => {
+    const factor = getZoomFactor();
+    panel.style.transformOrigin = "top left";
+    panel.style.transform = `scale(${1 / factor})`;
+    panel.style.width = `${factor * 100}%`;
+    panel.style.height = `${factor * 100}%`;
+  };
+
+  const formatElapsed = (totalSeconds) => {
+    const safe = Math.max(0, Number(totalSeconds) || 0);
+    const hours = String(Math.floor(safe / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, "0");
+    const seconds = String(safe % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const initRoundTimer = () => {
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      timerIntervalId = null;
+    }
+    const timerNode = panel.querySelector(".js-round-timer");
+    if (!timerNode) {
+      return;
+    }
+
+    const status = timerNode.dataset.timerStatus || "idle";
+    let elapsedSeconds = Number.parseInt(timerNode.dataset.elapsedSeconds || "0", 10);
+    if (!Number.isFinite(elapsedSeconds) || elapsedSeconds < 0) {
+      elapsedSeconds = 0;
+    }
+    const referenceStartedAt = timerNode.dataset.timerReferenceStartedAt || "";
+    if (status === "running" && referenceStartedAt) {
+      const startedAtMs = Date.parse(referenceStartedAt);
+      if (Number.isFinite(startedAtMs)) {
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+      }
+    }
+
+    timerNode.textContent = formatElapsed(elapsedSeconds);
+    if (status === "running") {
+      timerIntervalId = window.setInterval(() => {
+        elapsedSeconds += 1;
+        timerNode.textContent = formatElapsed(elapsedSeconds);
+      }, 1000);
+    }
+  };
+
+  const syncWinnerOverlay = () => {
+    const root = panel.querySelector(".js-scoreboard-root");
+    const nextActiveMatchId = (root?.dataset.activeMatchId || "").trim();
+    if (activeMatchId && nextActiveMatchId && activeMatchId !== nextActiveMatchId) {
+      dismissedWinnerMatchId = "";
+      if (winnerOverlayTimerId) {
+        clearTimeout(winnerOverlayTimerId);
+        winnerOverlayTimerId = null;
+      }
+    }
+    activeMatchId = nextActiveMatchId;
+
+    const overlay = panel.querySelector(".js-winner-overlay");
+    if (!overlay) {
+      if (winnerOverlayTimerId) {
+        clearTimeout(winnerOverlayTimerId);
+        winnerOverlayTimerId = null;
+      }
+      return;
+    }
+
+    const winnerMatchId = (overlay.dataset.winnerMatchId || "").trim();
+    if (winnerMatchId && dismissedWinnerMatchId === winnerMatchId) {
+      overlay.remove();
+      return;
+    }
+
+    if (winnerOverlayTimerId) {
+      clearTimeout(winnerOverlayTimerId);
+      winnerOverlayTimerId = null;
+    }
+    winnerOverlayTimerId = window.setTimeout(() => {
+      const currentOverlay = panel.querySelector(".js-winner-overlay");
+      if (!currentOverlay) {
+        return;
+      }
+      const currentWinnerMatchId = (currentOverlay.dataset.winnerMatchId || "").trim();
+      if (currentWinnerMatchId) {
+        dismissedWinnerMatchId = currentWinnerMatchId;
+      }
+      currentOverlay.remove();
+    }, winnerOverlayMs);
+  };
+
+  const updateViewportMode = () => {
+    const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+    const isWideEnough = normalizedViewportWidth() >= minWidth;
+    const canShowLive = isLandscape && isWideEnough;
+    guard.classList.toggle("hidden", canShowLive);
+    shell.classList.toggle("hidden", !canShowLive);
+    if (canShowLive) {
+      applyZoomNormalization();
+    }
+  };
+
+  const refresh = async () => {
+    if (shell.classList.contains("hidden")) {
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/scoreboard/${stationId}/live`,
+        { headers: { "X-Requested-With": "fetch" } },
+      );
+      if (!response.ok) {
+        return;
+      }
+      panel.innerHTML = await response.text();
+      if (window.tkdRenderIcons) {
+        window.tkdRenderIcons();
+      }
+      applyZoomNormalization();
+      initRoundTimer();
+      syncWinnerOverlay();
+    } catch (_error) {
+      // Keep screen stable while temporary network issues happen.
+    }
+  };
+
+  updateViewportMode();
+  window.addEventListener("resize", updateViewportMode);
+  window.addEventListener("orientationchange", updateViewportMode);
+  const dprMedia = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  if (typeof dprMedia.addEventListener === "function") {
+    dprMedia.addEventListener("change", updateViewportMode);
+  } else if (typeof dprMedia.addListener === "function") {
+    dprMedia.addListener(updateViewportMode);
+  }
+  window.setInterval(applyZoomNormalization, 1000);
+  applyZoomNormalization();
+  initRoundTimer();
+  syncWinnerOverlay();
+  setInterval(refresh, refreshMs);
+})();
+</script>
+{% endblock %}

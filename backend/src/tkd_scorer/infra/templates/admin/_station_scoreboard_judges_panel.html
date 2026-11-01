@@ -1,0 +1,35 @@
+<section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+  <h3 class="mb-3 text-lg font-bold text-slate-900">{{ t('scoreboard.status_by_judge') }}</h3>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-left text-slate-600">
+        <tr>
+          <th class="px-3 py-2 font-semibold">{{ t('common.judge') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.session') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.status') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('scoreboard.red') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('scoreboard.blue') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.match') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for item in view.judge_submissions %}
+        <tr class="border-b border-slate-100">
+          <td class="px-3 py-2 font-semibold text-slate-700" data-judge-alias="{{ item.alias }}">{{ item.alias }} {{ item.judge_name }}</td>
+          <td class="px-3 py-2 font-mono text-xs text-slate-500">{{ item.session_id }}</td>
+          <td class="px-3 py-2 text-slate-700" data-judge-status="{{ item.status }}">{{ item.status|status_label }}</td>
+          <td class="px-3 py-2 text-slate-700">{{ "%.2f"|format(item.red_score|float) }}</td>
+          <td class="px-3 py-2 text-slate-700">{{ "%.2f"|format(item.blue_score|float) }}</td>
+          <td class="px-3 py-2">
+            <a class="font-semibold text-brand-700 underline decoration-brand-300" href="/admin/matches/{{ item.match_id }}">{{ item.match_id }}</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="px-3 py-6 text-center text-slate-500">{{ t('scoreboard.no_finalizations') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

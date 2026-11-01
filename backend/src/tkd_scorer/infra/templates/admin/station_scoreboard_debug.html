@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('scoreboard.debug_page_title', station_id=view.station_id) }}{% endblock %}
+{% block content %}
+<div id="scoreboard-debug-panel">
+  {% include "admin/_station_scoreboard_debug_panel.html" with context %}
+</div>
+
+<script>
+(() => {
+  const stationId = "{{ view.station_id }}";
+  const refreshMs = {{ refresh_seconds }} * 1000;
+  const panel = document.getElementById("scoreboard-debug-panel");
+  let timerIntervalId = null;
+
+  const formatElapsed = (totalSeconds) => {
+    const safe = Math.max(0, Number(totalSeconds) || 0);
+    const hours = String(Math.floor(safe / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((safe % 3600) / 60)).padStart(2, "0");
+    const seconds = String(safe % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const initRoundTimer = () => {
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      timerIntervalId = null;
+    }
+    const timerNode = panel.querySelector(".js-round-timer");
+    if (!timerNode) {
+      return;
+    }
+
+    const status = timerNode.dataset.timerStatus || "idle";
+    let elapsedSeconds = Number.parseInt(timerNode.dataset.elapsedSeconds || "0", 10);
+    if (!Number.isFinite(elapsedSeconds) || elapsedSeconds < 0) {
+      elapsedSeconds = 0;
+    }
+    const referenceStartedAt = timerNode.dataset.timerReferenceStartedAt || "";
+    if (status === "running" && referenceStartedAt) {
+      const startedAtMs = Date.parse(referenceStartedAt);
+      if (Number.isFinite(startedAtMs)) {
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+      }
+    }
+
+    timerNode.textContent = formatElapsed(elapsedSeconds);
+    if (status === "running") {
+      timerIntervalId = window.setInterval(() => {
+        elapsedSeconds += 1;
+        timerNode.textContent = formatElapsed(elapsedSeconds);
+      }, 1000);
+    }
+  };
+
+  const refresh = async () => {
+    try {
+      const response = await fetch(
+        `/admin/stations/${stationId}/scoreboard/debug/live`,
+        { headers: { "X-Requested-With": "fetch" } },
+      );
+      if (!response.ok) {
+        return;
+      }
+      panel.innerHTML = await response.text();
+      if (window.tkdRenderIcons) {
+        window.tkdRenderIcons();
+      }
+      initRoundTimer();
+    } catch (_error) {
+      // Keep screen stable while temporary network issues happen.
+    }
+  };
+
+  initRoundTimer();
+  setInterval(refresh, refreshMs);
+})();
+</script>
+{% endblock %}

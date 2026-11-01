@@ -1,0 +1,24 @@
+categories:
+  beginners:
+    label: Beginners
+    poomsaes:
+      - Taeguk 1
+      - Taeguk 2
+      - Taeguk 3
+      - Taeguk 4
+  advanced:
+    label: Advanced
+    poomsaes:
+      - Taeguk 5
+      - Taeguk 6
+      - Taeguk 7
+      - Taeguk 8
+  black_belts:
+    label: Black belts
+    poomsaes:
+      - Koryo
+      - Keumgang
+      - Taebaek
+      - Pyongwon
+      - Sipjin
+      - Jitae

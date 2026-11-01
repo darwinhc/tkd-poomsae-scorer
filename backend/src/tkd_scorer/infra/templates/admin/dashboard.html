@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ t('nav.home') }}{% endblock %}
+{% block content %}
+<section class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <i data-lucide="grid-2x2" class="h-4 w-4 text-brand-700"></i>{{ t('dashboard.total_stations') }}
+    </p>
+    <p class="text-3xl font-extrabold text-slate-900">{{ view.total_stations }}</p>
+  </article>
+  <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <i data-lucide="activity" class="h-4 w-4 text-amber-600"></i>{{ t('dashboard.occupied_stations') }}
+    </p>
+    <p class="text-3xl font-extrabold text-slate-900">{{ view.occupied_stations }}</p>
+  </article>
+  <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <i data-lucide="smartphone" class="h-4 w-4 text-emerald-600"></i>{{ t('dashboard.connected_sessions') }}
+    </p>
+    <p class="text-3xl font-extrabold text-slate-900">{{ view.active_sessions }}</p>
+  </article>
+  <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <i data-lucide="swords" class="h-4 w-4 text-rose-600"></i>{{ t('dashboard.active_matches') }}
+    </p>
+    <p class="text-3xl font-extrabold text-slate-900">{{ view.active_matches }}</p>
+  </article>
+</section>
+
+<section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-panel">
+  <h3 class="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+    <i data-lucide="plus-circle" class="h-5 w-5 text-emerald-600"></i>{{ t('stations.create_heading') }}
+  </h3>
+  <form method="post" action="/admin/stations/create" class="grid gap-3 md:grid-cols-2">
+    <label class="text-sm font-semibold text-slate-700">
+      {{ t('stations.field_name') }}
+      <input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" type="text" name="station_name" placeholder="{{ t('stations.placeholder_name') }}" required>
+    </label>
+    <label class="text-sm font-semibold text-slate-700">
+      {{ t('stations.field_id_optional') }}
+      <input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" type="text" name="station_id" placeholder="station-01">
+    </label>
+    <label class="text-sm font-semibold text-slate-700">
+      {{ t('stations.field_expected_judge_optional') }}
+      <input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" type="text" name="expected_judge_name" placeholder="{{ t('stations.placeholder_judge') }}">
+    </label>
+    <label class="text-sm font-semibold text-slate-700">
+      {{ t('stations.field_initial_credential_optional') }}
+      <input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" type="text" name="credential" placeholder="1234">
+    </label>
+    <input type="hidden" name="actor" value="local-admin">
+    <div class="md:col-span-2">
+      <button class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-bold text-white hover:bg-brand-700" type="submit">
+        <i data-lucide="save" class="h-4 w-4"></i>{{ t('stations.create_submit') }}
+      </button>
+    </div>
+  </form>
+</section>
+
+<section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel">
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="flex items-center gap-2 text-lg font-extrabold text-slate-900">
+      <i data-lucide="table-properties" class="h-5 w-5 text-brand-700"></i>{{ t('stations.active_heading') }}
+    </h2>
+    <p class="text-xs text-slate-500">{{ t('common.updated_at', value=view.generated_at) }}</p>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-left text-slate-600">
+        <tr>
+          <th class="px-3 py-2 font-semibold">ID</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.name') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.status') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('stations.col_connected_judges') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('stations.col_connected_sessions') }}</th>
+          <th class="px-3 py-2 font-semibold">{{ t('common.actions') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for station in view.stations %}
+        <tr
+          class="station-row border-b border-slate-100 cursor-pointer hover:bg-brand-50/60 focus-within:bg-brand-50/60"
+          data-station-url="/admin/stations/{{ station.station_id }}"
+          tabindex="0"
+          role="link"
+          aria-label="{{ t('stations.open_detail_aria', name=station.station_name) }}"
+        >
+          <td class="px-3 py-2 font-semibold text-slate-700">{{ station.station_id }}</td>
+          <td class="px-3 py-2 text-slate-700">{{ station.station_name }}</td>
+          <td class="px-3 py-2">
+            <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{{ station.status|status_label }}</span>
+          </td>
+          <td class="px-3 py-2 text-slate-700">
+            {% if station.connected_judge_names %}
+              <div class="flex flex-wrap gap-1">
+                {% for judge_name in station.connected_judge_names %}
+                  <span class="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{{ judge_name }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td class="px-3 py-2 text-slate-700">{{ station.connected_sessions_count }}</td>
+          <td class="px-3 py-2">
+            <div class="flex flex-wrap gap-1">
+              <form method="post" action="/admin/stations/{{ station.station_id }}/delete" onsubmit='return confirm({{ t("stations.confirm_delete")|tojson }});' onclick="event.stopPropagation();">
+                <input type="hidden" name="actor" value="local-admin">
+                <button class="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700" type="submit">
+                  <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>{{ t('common.delete') }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="6" class="px-3 py-5 text-center text-sm text-slate-500">{{ t('dashboard.no_stations') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+(() => {
+  const rows = document.querySelectorAll(".station-row");
+  rows.forEach((row) => {
+    row.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("button, a, input, form")) {
+        return;
+      }
+      const url = row.getAttribute("data-station-url");
+      if (url) {
+        window.location.href = url;
+      }
+    });
+
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const url = row.getAttribute("data-station-url");
+        if (url) {
+          window.location.href = url;
+        }
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}
